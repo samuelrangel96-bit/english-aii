@@ -1,0 +1,214 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>English AI</title>
+<style>
+*{box-sizing:border-box}
+body{
+margin:0;
+font-family:Arial,sans-serif;
+background:#0b1020;
+color:white;
+padding:20px;
+}
+.container{
+max-width:500px;
+margin:auto;
+}
+header{text-align:center;padding:25px 0}
+h1{color:#65a5ff;font-size:32px}
+.card{
+background:#17223b;
+padding:20px;
+border-radius:18px;
+margin-bottom:18px;
+}
+button{
+border:0;
+border-radius:12px;
+padding:14px;
+font-size:16px;
+font-weight:bold;
+cursor:pointer;
+}
+.primary{
+background:#397cff;
+color:white;
+width:100%;
+}
+.secondary{
+background:#263958;
+color:white;
+width:100%;
+margin-top:10px;
+}
+textarea{
+width:100%;
+min-height:100px;
+padding:14px;
+border-radius:12px;
+border:1px solid #52617d;
+background:#0b1428;
+color:white;
+font-size:16px;
+}
+input{
+width:100%;
+padding:14px;
+border-radius:10px;
+border:0;
+margin:10px 0;
+}
+#result{
+white-space:pre-wrap;
+line-height:1.6;
+}
+.small{color:#aab6d3;font-size:14px}
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+<h1>English AI</h1>
+<p>Seu professor particular de inglês com IA</p>
+</header>
+
+<div class="card">
+<h3>🎙️ Conversação</h3>
+<p class="small">Pratique inglês falando naturalmente.</p>
+<button class="primary" onclick="startVoice()">
+Começar a falar
+</button>
+<button class="secondary" onclick="stopVoice()">
+Parar conversa
+</button>
+<p id="voiceStatus" class="small">
+Aguardando você começar...
+</p>
+</div>
+
+<div class="card">
+<h3>💬 Conversar com o professor</h3>
+<textarea id="message" placeholder="Escreva sua frase em inglês..."></textarea>
+<button class="primary" onclick="sendMessage()">
+Enviar mensagem
+</button>
+<div id="result"></div>
+</div>
+
+<div class="card">
+<h3>🌎 Tradutor</h3>
+<input id="translation" placeholder="Digite uma frase para traduzir">
+<button class="primary" onclick="translateText()">
+Traduzir
+</button>
+<p id="translated"></p>
+</div>
+
+</div>
+
+<script>
+let recognition;
+let listening = false;
+let history = [];
+
+function speak(text){
+if(!window.speechSynthesis)return;
+speechSynthesis.cancel();
+let utterance = new SpeechSynthesisUtterance(text);
+utterance.lang = "en-US";
+utterance.rate = 0.9;
+speechSynthesis.speak(utterance);
+}
+
+function startVoice(){
+const SpeechRecognition =
+window.SpeechRecognition ||
+window.webkitSpeechRecognition;
+
+if(!SpeechRecognition){
+document.getElementById("voiceStatus").innerText =
+"Reconhecimento de voz não disponível neste navegador.";
+return;
+}
+
+recognition = new SpeechRecognition();
+recognition.lang = "en-US";
+recognition.continuous = true;
+recognition.interimResults = false;
+
+recognition.onresult = async function(event){
+let text = event.results[event.results.length-1][0].transcript;
+document.getElementById("message").value = text;
+await sendMessage();
+};
+
+recognition.onerror = function(){
+document.getElementById("voiceStatus").innerText =
+"Erro no reconhecimento de voz.";
+};
+
+recognition.onend = function(){
+if(listening){
+try{recognition.start()}catch(e){}
+}
+};
+
+listening = true;
+recognition.start();
+
+document.getElementById("voiceStatus").innerText =
+"Ouvindo você...";
+}
+
+function stopVoice(){
+listening = false;
+if(recognition)recognition.stop();
+speechSynthesis.cancel();
+document.getElementById("voiceStatus").innerText =
+"Conversa pausada.";
+}
+
+async function sendMessage(){
+let message = document.getElementById("message").value.trim();
+if(!message)return;
+
+let result = document.getElementById("result");
+result.innerText = "Professor está pensando...";
+
+history.push({role:"user",content:message});
+
+try{
+const response = await fetch("/api/chat",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({message,history})
+});
+
+if(!response.ok)throw new Error("Servidor não conectado");
+
+const data = await response.json();
+result.innerText = data.reply;
+history.push({role:"assistant",content:data.reply});
+speak(data.reply);
+
+}catch(error){
+result.innerText =
+"Sua mensagem foi recebida! Para conversar com o professor de IA, precisamos concluir a integração segura com a OpenAI.";
+}
+document.getElementById("message").value = "";
+}
+
+function translateText(){
+let text = document.getElementById("translation").value.trim();
+if(!text)return;
+document.getElementById("translated").innerText =
+"Para traduzir automaticamente, precisamos conectar o serviço de tradução à IA.";
+}
+</script>
+</body>
+</html>
